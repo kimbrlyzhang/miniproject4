@@ -1,0 +1,40 @@
+---
+title: "mp4"
+author: "Kimberly Zhang"
+date: "11/29/2017"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(mdsr)
+library(RMySQL)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+db <- dbConnect_scidb(dbname = "imdb")
+```
+
+
+```{r,warning=FALSE, message=FALSE}
+companies <- db %>%
+  dbGetQuery("select cn.id, cn.name, t.title, t.production_year
+from imdb.company_name cn
+join title t ON cn.id = t.id
+where country_code = '[us]' and kind_id = '1';")
+```
+
+```{r,warning=FALSE, message=FALSE}
+ratings <- db %>%
+  dbGetQuery("select t.id, mii.info AS ratings
+from title t
+left join movie_info_idx mii on mii.movie_id = t.id 
+where 
+t.kind_id = '1' 
+		and mii.info_type_id = 101;")
+
+#could delete some stuff in the select segment
+```
+
+```{r, warning=FALSE, message=FALSE}
+right_join(ratings, companies, by = 'id')
+```
