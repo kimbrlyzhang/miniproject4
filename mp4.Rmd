@@ -32,9 +32,20 @@ where
 t.kind_id = '1' 
 		and mii.info_type_id = 101;")
 
+
+t <- db %>%
+  dbGetQuery("select t.id, cn.name, t.title, t.production_year, mii.info AS rating
+from 
+imdb.movie_companies mc 
+right join company_type ct on mc.company_type_id = ct.id
+join company_name cn on mc.movie_id = cn.id
+join title t on mc.movie_id
+join movie_info_idx mii on mii.movie_id = t.id 
+where cn.country_code = '[us]' and ct.id = 2 and t.kind_id = 1 and mii.info_type_id = 101")
+
 #could delete some stuff in the select segment
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-right_join(ratings, companies, by = 'id')
+t
 ```
