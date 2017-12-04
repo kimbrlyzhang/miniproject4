@@ -1,0 +1,175 @@
+---
+title: "shrek"
+author: "Kimberly Zhang, Emily Raphael, Maddie Haines"
+date: "12/1/2017"
+output: html_document
+---
+#Life After Shrek is a Good One
+
+Everyone remembers giggling along with the TV and their favorite animated character. Animated films are the hallmark of any childhood, but are they a hallmark of a successful Hollywood career? 
+
+Let's delve into the Shrek franchise, one of the most successful and profitable of all time, as a case study on how voice acting may have influenced an acting career. In animation, an actor’s voice is the star of the show. Normally the actors’ physical features are an integral part of the cinematic experience, but with animated films, the moviegoer’s connection to the actor is hinged on their auditory experience. With this in mind, how well known can an actor become after participating in an animated film? The results are mixed. Post-animated success depends on various factors such as where in their career trajectory the actors and actresses are and if they are cast in diverse genres. Overall, life after Shrek is a good one. The dynamics of the film industry yield two different scenarios going into a film: an already famous actor who got the gig due to their previous work, or an up-and-coming star ready to catch their big break through animation. 
+
+```{r message=FALSE, warning=FALSE}
+library(mdsr)
+library(RMySQL)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+library(stringr)
+library(devtools)
+db <- dbConnect_scidb(db = "imdb")
+
+#devtools::install_github("benmarwick/wordcountaddin", 
+                      #type = "source", dependencies = TRUE)
+
+#wordcountaddin:::text_stats("shrek - final")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+
+sequelsall <- db %>% 
+  dbGetQuery("select  t.id, t.title, t.production_year, mii.info AS ratings, lt.link, mv.movie_id, mv.linked_movie_id
+from title t 
+inner join movie_link mv on mv.linked_movie_id = t.id
+  #joined movie link to title to get how each movie is connected to other movies
+left join link_type lt on lt.id = mv.link_type_id 
+  #joined the link type to the movie link table to get the descriptions of how each movie is connected
+left join movie_info_idx mii on mii.movie_id = t.id 
+  #joined movie id to movie info to get ratings of each movie
+where 
+t.kind_id = '1' 
+        and mii.info_type_id = 101
+        and lt.link like 'follow%' or 'rema%' or 'version%';")
+  #filtered for only movies, ratings and the specific links that will tell us about sequels
+
+sequels <- db %>% 
+  dbGetQuery("select  t.id, t.title, t.production_year, mii.info AS ratings, lt.link, mv.movie_id, mv.linked_movie_id
+from title t 
+inner join movie_link mv on mv.linked_movie_id = t.id
+  #joined movie link to title to get how each movie is connected to other movies
+left join link_type lt on lt.id = mv.link_type_id 
+  #joined the link type to the movie link table to get the descriptions of how each movie is connected
+left join movie_info_idx mii on mii.movie_id = t.id 
+  #joined movie id to movie info to get ratings of each movie
+where t.kind_id = '1' and
+mii.info_type_id = 101 and 
+lt.link like 'follow%' or 'rema%' or 'version%' and mii.info = 'Animation';")
+  #filtered for only movies, ratings and the specific links that will tell us about sequels
+
+shrek <- db %>%
+  dbGetQuery("select t.id , t.title, mi.info, mii.info AS ratings, t.production_year
+from title t 
+inner join imdb.movie_info mi on mi.movie_id = t.id
+left join movie_info_idx mii on mii.movie_id = t.id 
+  #joined to find a genre label for each movie
+where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and t.title like '%shrek%'")
+
+animation <- db %>%
+  dbGetQuery("select t.id , t.title, mi.info, mii.info AS ratings, t.production_year
+from title t 
+inner join imdb.movie_info mi on mi.movie_id = t.id
+left join movie_info_idx mii on mii.movie_id = t.id 
+  #joined to find a genre label for each movie
+where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and production_year > '2000'")
+
+#people <- db %>%
+  #dbGetQuery("select t.id as movieid , t.title, t.production_year, cn.name, an.name
+#from 
+#title t 
+#inner join cast_info ci on t.id = ci.movie_id
+#inner join aka_name an on an.person_id = ci.person_id 
+#inner join char_name cn on cn.name_pcode_nf = an.name_pcode_nf;")
+
+genres <- db %>%
+  dbGetQuery("select t.id , t.title, mi.info, t.production_year
+from title t 
+inner join imdb.movie_info mi on mi.movie_id = t.id
+  #joined to find a genre label for each movie
+where info_type_id = '3' 
+and t.kind_id = '1'")
+#filtered to only show data for genres in movies
+```
+We have all grown up laughing at the grumpy ogre who saves the day in his own way, but Shrek as a franchise is nothing to laugh at. It is the second highest grossing animated franchise and fourteenth highest grossing film empire overall. Among all the movie genres, animated films require more acclaim in order to generate sequels and continue the franchise.
+
+
+```{r mini project 3 results, message=FALSE, warning=FALSE}
+selectg <- c("History", "Short", "Animation", "Action", "Comedy", "Family") 
+  #selected genres from above analysis to analyze 
+genreseq <- inner_join(sequels, genres, by = 'id')
+
+#joined the sequels and genres together to create one table
+
+gseq <- genreseq %>% 
+  group_by(title.x) %>%
+  #organized the data by the first title in the sequel series
+  mutate(countitle = count(title.x)) %>%
+  #counted the amount of titles in each sequel series
+  mutate(rate = as.numeric(ratings)) %>%
+  #converted the rate into a number from a character
+  mutate(average = sum(rate)/countitle)
+  #found the average imdb score per sequel series
+
+gsummarize <- gseq %>%
+  filter(info %in% selectg) %>%
+  #filtered for selected genres
+  filter(countitle < 10) %>%
+  #got rid of franchises that exceeded 10 sequels
+  mutate(kimdb = sum(rate)/countitle) %>%
+  #found average imdb score of the franchise
+  group_by(info, countitle) %>%
+  #organized by genre and number of sequels
+  summarize(nk = n(), avrgk = sum(kimdb)/nk)
+  #boiled it down to the average imdb score of all franchise across genres
+
+firstseq <- gsummarize %>%
+  filter(countitle == 1)
+  #isolated dataset to only show the first sequel in a franchise series 
+
+ggplot(firstseq, aes(x = info, y = avrgk, fill = info)) + 
+  geom_col() + 
+  scale_fill_brewer(palette = "Set3") + 
+  scale_y_continuous(limit = c(0, 7), 
+                     breaks = c(1, 2, 3, 4, 5, 6, 7), 
+                     labels = c("1", "2", "3", "4", "5", "6", "7")) +
+   labs(x = "Genre", y = "Average IMDB Rating") +
+    ggtitle("Average IMDB Rating for the First Sequel") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5), legend.position = "none")
+
+```
+
+Animated films, due to their specific technology, are among the most expensive films to produce. The cost of animated films makes movie producers more risk-adverse in the decision-making process of producing films. Additionally, animated films are unique, because their audiences are comprised of young children and making parents the real target market for these films. The family element adds competition for newer animated films, because often, parents want to pass down the classic films they watched as children. For an example, a family may chose to stay home and watch a classic Disney movie like The Little Mermaid rather than go and see the latest animated film.  The level of competition and costs raise the stakes for animated movies, which explains why they require an higher IMDB score to merit a sequel.IMBD scores are produced from user and critic scores on the popular movie site, imdb.com. 
+
+```{r shrek to itself, fig.width=12, message=FALSE, warning=FALSE}
+
+shrek <- shrek %>%
+  mutate(rate = as.numeric(ratings), date = as.integer(production_year)) %>%
+  arrange(production_year)
+
+shrek <- shrek %>%
+  distinct(title, .keep_all = TRUE) 
+
+ggplot(shrek, aes( x = title, y = rate)) + geom_col() + scale_fill_brewer(palette = "Set3") + coord_flip()
+
+ggplot(shrek, aes(x = production_year, y = title)) + geom_point(aes(size = rate))
+```
+Using the IMDB score as a measure of success, the Shrek franchise is moderately more successful than its animated peers produced in the same time period (2000-Present). The first Shrek is the best-rated in the franchise at 7.9, and it clocks in considerably higher than the first film in any animated franchise, which only scores an average of 6.5. The subsequent Shrek sequels are drop lower over time with the spinoffs rated even lower, no matter the release date.
+
+Starring actors are often directly connected to their movies' IMDB scores, though their participation in animated franchise can influence their careers in a variety of ways. This variation could be due to a diversity in movie genre before or after their voice acting and their experience acting in animated movies. 
+
+
+**[placeholder for three visualizations about the actors and actresses's subsequent]**
+
+
+Mike Myers is the industry veteran of Shrek and Cameron Diaz the rising star. Mike Myers was the exception this trio. He was already acclaimed for his hits like Wayne’s World and Austin Powers, whereas the other two had only garnered moderate attention. Myers was a big influencer in not only the depiction of Shrek, but in the process of crafting the plot. (Entertainment Weekly, 2001) 
+
+Cameron Diaz, however, benefitted in a different way from Shrek. Shrek was her blockbuster hit as an actor. She has had moderate commercial success in some of her other non-animated work, but her role as Princess Fiona made her critically acclaimed. After her heavily praised role in as princess Fiona, Diaz went on to book many more non-animated films, though she has never done another animated movie.
+
+For Eddie Murphy, Shrek gave him a niche market of animation and comedic material for children. He became idolized for his vocal performance as Donkey. Murphy started out as an comedian for adult audiences, but none of which has been as successful as the Shrek franchise. Eddie Murphy, however, was an acclaimed voice actor. He had played a supporting role as MuShu the dragon in Disney’s Mulan, but Shrek cemented his notoriety as a master of family movies. He booked more family movies like Dr. Dolittle and Daddy Day Care. The data shows that his family work was more popular than his work for adult audiences like I Spy and Metro.
+
+**GitHub**
+https://github.com/kimbrlyzhang/miniproject4 
+
+Word Count: 822
