@@ -3,6 +3,7 @@ title: "shrek"
 author: "Kimberly Zhang, Emily Raphael, Maddie Haines"
 date: "12/1/2017"
 output: html_document
+code_folding: hide 
 ---
 #Life After Shrek is a Good One
 
@@ -75,13 +76,13 @@ left join movie_info_idx mii on mii.movie_id = t.id
   #joined to find a genre label for each movie
 where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and production_year > '2000'")
 
-#people <- db %>%
-  #dbGetQuery("select t.id as movieid , t.title, t.production_year, cn.name, an.name
-#from 
-#title t 
-#inner join cast_info ci on t.id = ci.movie_id
-#inner join aka_name an on an.person_id = ci.person_id 
-#inner join char_name cn on cn.name_pcode_nf = an.name_pcode_nf;")
+people <- db %>%
+  dbGetQuery("select t.id as movieid , t.title, t.production_year, cn.name, an.name
+from 
+title t 
+inner join cast_info ci on t.id = ci.movie_id
+inner join aka_name an on an.person_id = ci.person_id 
+inner join char_name cn on cn.name_pcode_nf = an.name_pcode_nf;")
 
 genres <- db %>%
   dbGetQuery("select t.id , t.title, mi.info, t.production_year
@@ -91,6 +92,15 @@ inner join imdb.movie_info mi on mi.movie_id = t.id
 where info_type_id = '3' 
 and t.kind_id = '1'")
 #filtered to only show data for genres in movies
+
+
+moneys <- db %>%
+  dbGetQuery("select t.title, t.production_year, t.kind_id, mi.info_type_id as budget, mii.info_type_id as gross, mi.info_type_id
+from imdb.title t
+join movie_info mi on t.id = mi.movie_id
+join movie_info mii on t.id = mii.movie_id
+where mi.info_type_id = 105 
+and mii.info_type_id =107;")
 ```
 We have all grown up laughing at the grumpy ogre who saves the day in his own way, but Shrek as a franchise is nothing to laugh at. It is the second highest grossing animated franchise and fourteenth highest grossing film empire overall. Among all the movie genres, animated films require more acclaim in order to generate sequels and continue the franchise.
 
