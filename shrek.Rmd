@@ -61,7 +61,69 @@ inner join imdb.movie_info mi on mi.movie_id = t.id
 left join movie_info_idx mii on mii.movie_id = t.id 
   #joined to find a genre label for each movie
 where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and t.title like '%shrek%'")
+
+moneys <- db %>%
+  dbGetQuery("select t.id, t.title, t.production_year, mii.info AS budget, mii2.info AS gross
+from title t
+join movie_info mii ON mii.movie_id = t.id
+join movie_info mii2 ON mii2.movie_id = t.id
+where t.kind_id = 1
+  and mii.info_type_id = 105
+  and mii2.info_type_id = 107
+  and mii2.info like '%USA%';")
+
+animation <- db %>%
+  dbGetQuery("select t.id , t.title, mi.info, mii.info AS ratings, t.production_year
+from title t 
+inner join imdb.movie_info mi on mi.movie_id = t.id
+left join movie_info_idx mii on mii.movie_id = t.id 
+  #joined to find a genre label for each movie
+where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and production_year > '2000'")
 ```
+
+```{r}
+url <-"https://en.wikipedia.org/w/index.php?title=List_of_highest-grossing_animated_films"
+html_bom <- read_html(url)
+tables <- html_bom %>%
+  html_nodes("table")
+wiki_movies <- tables[[7]] %>%
+  html_table(header = TRUE, fill = TRUE)
+
+wiki_movies
+```
+
+
+```{r}
+animationmoney <- inner_join(animation, moneys, by = "id")
+
+animationmoney
+
+animationmoney %>%
+  mutate(revenue = unlist(str_split(gross, pattern = "\\(", n = 1)))
+
+animationmoney$revenue <- str_split_fixed(animationmoney$gross, pattern = "\\(", n = 3)[ , 1] %>%
+  parse_number()
+
+animationmoney
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 We have all grown up laughing at the grumpy ogre who saves the day in his own way, but Shrek as a franchise is nothing to laugh at. It is the second highest grossing animated franchise and fourteenth highest grossing film empire overall. Among all the movie genres, animated films require more acclaim in order to generate sequels and continue the franchise.
@@ -143,7 +205,7 @@ grosshrek <- shrekmovies %>%
 ggplot(grosshrek, aes(x = date, y = gross)) + geom_col(aes(fill = title))
 ```
 
-Using the IMDB score as a measure of success, the Shrek franchise is moderately more successful than its animated peers produced in the same time period (2000-Present). The first Shrek is the best-rated in the franchise at 7.9, and it clocks in considerably higher than the first film in any animated franchise, which only scores an average of 6.5. The subsequent Shrek sequels are drop lower over time with the spinoffs rated even lower, no matter the release date.
+Using the IMDB score as a measure of success, the Shrek franchise is moderately more successful than its animated peers produced in the same time period (2000-Present). The first Shrek is the best-rated in the franchise at 7.9, and it clocks in considerably higher than the first film in any animated franchise, which only scores an average of 6.5. The subsequent Shrek sequels are drop lower over time with the spinoffs rated even lower, no matter the release date. 
 
 Starring actors are often directly connected to their movies' IMDB scores, though their participation in animated franchise can influence their careers in a variety of ways. This variation could be due to a diversity in movie genre before or after their voice acting and their experience acting in animated movies. 
 
