@@ -5,13 +5,8 @@ date: "12/1/2017"
 output: html_document
 code_folding: hide 
 ---
-#Life After Shrek is a Good One
 
-Everyone remembers giggling along with the TV and their favorite animated character. Animated films are the hallmark of any childhood, but are they a hallmark of a successful Hollywood career? 
-
-Let's delve into the Shrek franchise, one of the most successful and profitable of all time, as a case study on how voice acting may have influenced an acting career. In animation, an actor’s voice is the star of the show. Normally the actors’ physical features are an integral part of the cinematic experience, but with animated films, the moviegoer’s connection to the actor is hinged on their auditory experience. With this in mind, how well known can an actor become after participating in an animated film? The results are mixed. Post-animated success depends on various factors such as where in their career trajectory the actors and actresses are and if they are cast in diverse genres. Overall, life after Shrek is a good one. The dynamics of the film industry yield two different scenarios going into a film: an already famous actor who got the gig due to their previous work, or an up-and-coming star ready to catch their big break through animation. 
-
-```{r message=FALSE, warning=FALSE}
+```{r Load Library, message=FALSE, warning=FALSE}
 library(mdsr)
 library(RMySQL)
 library(ggplot2)
@@ -21,6 +16,9 @@ library(RColorBrewer)
 library(stringr)
 library(devtools)
 library(rvest)
+library(plotly)
+library(gapminder)
+library(ggthemes)
 db <- dbConnect_scidb(db = "imdb")
 
 #devtools::install_github("benmarwick/wordcountaddin", 
@@ -30,7 +28,7 @@ db <- dbConnect_scidb(db = "imdb")
 ```
 
 
-```{r message=FALSE, warning=FALSE}
+```{r Query Data, message=FALSE, warning=FALSE}
 genres <- db %>%
   dbGetQuery("select t.id , t.title, mi.info, t.production_year
 from title t 
@@ -78,106 +76,12 @@ from title t
 inner join imdb.movie_info mi on mi.movie_id = t.id
 left join movie_info_idx mii on mii.movie_id = t.id 
   #joined to find a genre label for each movie
-where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and production_year > '2000'")
-```
-
-```{r}
-url <-"https://en.wikipedia.org/w/index.php?title=List_of_highest-grossing_animated_films"
-html_bom <- read_html(url)
-tables <- html_bom %>%
-  html_nodes("table")
-wiki_movies <- tables[[7]] %>%
-  html_table(header = TRUE, fill = TRUE)
-
-wiki_movies
+where mi.info_type_id = '3' and mii.info_type_id = 101 and mi.info = 'Animation' and production_year > '1995'")
 ```
 
 
-```{r}
-animationmoney <- inner_join(animation, moneys, by = "id")
-
-animationmoney
-
-animationmoney %>%
-  mutate(revenue = unlist(str_split(gross, pattern = "\\(", n = 1)))
-
-animationmoney$revenue <- str_split_fixed(animationmoney$gross, pattern = "\\(", n = 3)[ , 1] %>%
-  parse_number()
-
-animationmoney
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-We have all grown up laughing at the grumpy ogre who saves the day in his own way, but Shrek as a franchise is nothing to laugh at. It is the second highest grossing animated franchise and fourteenth highest grossing film empire overall. Among all the movie genres, animated films require more acclaim in order to generate sequels and continue the franchise.
-
-
-
-```{r mini project 3 results, message=FALSE, warning=FALSE}
-selectg <- c("History", "Short", "Animation", "Action", "Comedy", "Family") 
-  #selected genres from above analysis to analyze 
-genreseq <- inner_join(sequels, genres, by = 'id')
-
-#joined the sequels and genres together to create one table
-
-gseq <- genreseq %>% 
-  group_by(title.x) %>%
-  #organized the data by the first title in the sequel series
-  mutate(countitle = count(title.x)) %>%
-  #counted the amount of titles in each sequel series
-  mutate(rate = as.numeric(ratings)) %>%
-  #converted the rate into a number from a character
-  mutate(average = sum(rate)/countitle)
-  #found the average imdb score per sequel series
-
-gsummarize <- gseq %>%
-  filter(info %in% selectg) %>%
-  #filtered for selected genres
-  filter(countitle < 10) %>%
-  #got rid of franchises that exceeded 10 sequels
-  mutate(kimdb = sum(rate)/countitle) %>%
-  #found average imdb score of the franchise
-  group_by(info, countitle) %>%
-  #organized by genre and number of sequels
-  summarize(nk = n(), avrgk = sum(kimdb)/nk)
-  #boiled it down to the average imdb score of all franchise across genres
-
-firstseq <- gsummarize %>%
-  filter(countitle == 1)
-  #isolated dataset to only show the first sequel in a franchise series 
-
-ggplot(firstseq, aes(x = info, y = avrgk, fill = info)) + 
-  geom_col() + 
-  scale_fill_brewer(palette = "Set3") + 
-  scale_y_continuous(limit = c(0, 7), 
-                     breaks = c(1, 2, 3, 4, 5, 6, 7), 
-                     labels = c("1", "2", "3", "4", "5", "6", "7")) +
-   labs(x = "Genre", y = "Average IMDB Rating") +
-    ggtitle("Average IMDB Rating for the First Sequel") +
-  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5), legend.position = "none")
-
-```
-
-Animated films, due to their specific technology, are among the most expensive films to produce. The cost of animated films makes movie producers more risk-adverse in the decision-making process of producing films. Additionally, animated films are unique, because their audiences are comprised of young children and making parents the real target market for these films. The family element adds competition for newer animated films, because often, parents want to pass down the classic films they watched as children. For an example, a family may chose to stay home and watch a classic Disney movie like The Little Mermaid rather than go and see the latest animated film.  The level of competition and costs raise the stakes for animated movies, which explains why they require an higher IMDB score to merit a sequel.IMBD scores are produced from user and critic scores on the popular movie site, imdb.com. 
-
-```{r}
+```{r Shrek Table, message=FALSE, warning= FALSE}
+#input shrek data
 url <- "http://www.boxofficemojo.com/franchises/chart/?id=shrek.htm"
 
 html_bom <- read_html(url)
@@ -194,22 +98,146 @@ shrekmovies <- tables[[6]] %>%
 
 shrekmovies <- shrekmovies %>%
   head(n = 5)
-
+#create base shrek table
 require(lubridate)
 grosshrek <- shrekmovies %>%
   mutate(date = mdy(Release), 
          gross = parse_number(`Adjusted Gross`)) %>%
   rename(title = "Title (click to view)") %>%
   select(title, gross, date)
-
-ggplot(grosshrek, aes(x = date, y = gross)) + geom_col(aes(fill = title))
 ```
 
-Using the IMDB score as a measure of success, the Shrek franchise is moderately more successful than its animated peers produced in the same time period (2000-Present). The first Shrek is the best-rated in the franchise at 7.9, and it clocks in considerably higher than the first film in any animated franchise, which only scores an average of 6.5. The subsequent Shrek sequels are drop lower over time with the spinoffs rated even lower, no matter the release date. 
+```{r Despicable Me Table, message=FALSE, warning=FALSE}
+#input Despicable Me Data
 
-Starring actors are often directly connected to their movies' IMDB scores, though their participation in animated franchise can influence their careers in a variety of ways. This variation could be due to a diversity in movie genre before or after their voice acting and their experience acting in animated movies. 
+url <- "http://www.boxofficemojo.com/franchises/chart/?id=despicableme.htm"
 
-```{r Myer Movies, message=FALSE, warning=FALSE}
+html_bom <- read_html(url)
+class(html)
+
+tables <- html_bom %>%
+  html_nodes("table")
+#Already Adjusted for Inflation
+
+DE <- tables[[6]] %>%
+  html_table(header = TRUE) %>%
+  head(4)
+#create Despicable me table
+require(lubridate)
+DE <- DE %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg) 
+
+```
+
+```{r Toy Story Table, message=FALSE, warning=FALSE}
+#input Toy Story Data
+urltoystory <- "http://www.boxofficemojo.com/franchises/chart/?view=main&id=toystory.htm&p=.htm"
+
+html_bom <- read_html(urltoystory)
+class(html)
+#Already Adjusted for Inflation
+tablest <- html_bom %>%
+  html_nodes("table")
+
+andy <- tablest[[6]] %>%
+  html_table(header = TRUE)
+#Create basic Toy Story Table
+ toystory <- andy %>%
+  head(3) %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg)
+```
+
+```{r Ice Age Tabel , message=FALSE, warning=FALSE}
+#input Ice Age Table
+url <- "http://www.boxofficemojo.com/franchises/chart/?id=iceage.htm"
+
+html_bom <- read_html(url)
+class(html)
+#Already Adjusted For Inflation
+tables <- html_bom %>%
+  html_nodes("table")
+
+mammoth <- tables[[6]] %>%
+  html_table(header = TRUE)
+#Create basic Ice Age Table
+iceage <- mammoth %>%
+  head(5) %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg)
+
+```
+
+```{r Average Animation Table, message=FALSE, warning=FALSE}
+#Create Basic Animated movies table
+animationmoney <- inner_join(animation, moneys, by = "id")
+
+animationmoney %>%
+  mutate(revenue = unlist(str_split(gross, pattern = "\\(", n = 1)))
+
+animationmoney$revenue <- str_split_fixed(animationmoney$gross, pattern = "\\(", n = 3) [ , 1] %>% 
+  parse_number()
+
+animationseq <- left_join(animationmoney, sequels, by = 'id')
+
+#Mutate table to find animated movie gross average per year
+average_anim <- animationseq %>%
+  group_by(title.x, id) %>%
+  mutate(actualrev = max(revenue))%>%
+  ungroup(title.x, id) %>%
+  #Needs to be a date to go on the same graph as the movie points
+  mutate(year = as.Date(paste0(production_year.x, '-01-01'))) %>%
+  group_by(year) %>%
+  mutate(avg = sum(actualrev)/n()) %>%
+  arrange(desc(actualrev)) %>%
+  distinct(id, .keep_all = TRUE) %>%
+  select(id, title.x, actualrev, avg, production_year)%>%
+  #2017 Skews the data
+  filter(year != "2017-01-01")
+
+```
+
+```{r Animated Comparison Graph, message=FALSE, warning=FALSE}
+#Manually creates the legend
+legend <- c( "Toy Story" = "#AF1B3F", "Despicable Me" = "#EAC435", "Shrek" = "#0B5D1E","Ice Age"= "#197278", "Average" ="#686868" )
+#Graphic that compares top animated films compared to the average gross, using tables created in previous r chunks
+compare <-
+  ggplot(data = grosshrek, aes(x = date, y = gross, text = title, text2 = date, text3 = gross, colour = gross)) + 
+  #average line
+  geom_line(data = average_anim, aes(x = year, y = avg, color = "Average"), alpha = 0.6, inherit.aes = FALSE) +
+  #Shrek data
+  geom_point(size = 4, aes(color = "Shrek")) +
+  #Despicable me data
+  geom_point(data = DE, aes(x = date, y = gross, text = title, text2 = date, text3 = gross, color = "Despicable Me"), size = 4, inherit.aes = FALSE)+
+  #Ice Age data
+  geom_point(data = iceage, aes(x = date, y = gross, color = "Ice Age",text = title, text2 = date, text3 = gross), size = 4, inherit.aes = FALSE)+
+  #Toy Story Data
+  geom_point(data = toystory, aes(x = date, y = gross, text = title, text2 = date, text3 = gross, color = "Toy Story"), size = 4, inherit.aes = FALSE)+
+  #manually creates legend
+  scale_color_manual( values = legend)+
+  ggtitle( "Animated Movies")+
+  scale_y_continuous(limit = c(0,700000000), 
+                     breaks = c(0,200000000,400000000,600000000), 
+                     labels = c("$0","$200M", "$400M","$600M")) +
+  labs( x = "Release Date", y = "Total Gross", face = "bold") +
+   theme_fivethirtyeight() +
+   theme(axis.title.y = element_text("Total Gross", size = (14)), 
+        axis.title.x = element_text("Release Date", size = (14)), 
+        axis.text = element_text(size = (10)), 
+        legend.title= element_blank())
+
+#tooltip animation
+compare <- ggplotly(tooltip = c("text", "text2", "text3"))
+compare
+
+```
+
+```{r Myers Tables, message=FALSE, warning=FALSE}
+#input Myers Movie Data
 url <- "http://www.boxofficemojo.com/people/chart/?view=Actor&id=mikemyers.htm&sort=date&order=ASC&p=.htm"
 
 html_bom <- read_html(url)
@@ -219,34 +247,53 @@ myers_movies <- tables[[3]] %>%
   html_table(header = TRUE)
 glimpse(myers_movies)
 
-
 require(lubridate)
 myers_movies <- myers_movies[,-7]
-
+#Main myers table
 myers_movies <- myers_movies %>%
   mutate(date = mdy(Date),
          opening = parse_number(`Opening / Theaters`),
-         lifetime = parse_number(`Lifetime Gross / Theaters`))
+         lifetime = parse_number(`Lifetime Gross / Theaters`))%>%
+  rename( Title = `Title (click to view)`)
+myers_movies <- myers_movies %>% 
+  rename(LifetimeGross = `Lifetime Gross / Theaters`)
 
-ggplot(data = myers_movies, 
-       aes(x = date, y = opening)) + 
-  geom_point(aes(color = lifetime, size = lifetime)) +
-  scale_color_gradient(low = "#99FF99", high = "009505") +
-  guides(color = guide_legend("Lifetime Gross"),
-         size = guide_legend("Lifetime Gross")) +
-  scale_y_continuous("Opening Gross", labels = scales::dollar) +
-  scale_x_date("Release Date") +
-  annotate("segment", x = as.Date(ymd(20010522)), xend = as.Date(ymd(20010522)), y = 0, yend = 115000000, color = "darkgreen") +
-  annotate("text", x = as.Date(ymd(19970510)), y = 126000000, label = "First Shrek", size = 3, color = "darkgreen", fontface = "italic") +
-  annotate("text", x = as.Date(ymd(19970520)), y = 120000000, label = "Movie Released", size = 3, color = "darkgreen", fontface = "italic") +
-  ggtitle("Mike Myer's Movies Grosses \n Before and After Shrek")
+#Myers movies that are not shrek
+noshrek <- myers_movies %>% 
+  filter(!Title %in% c("Shrek(Voice)","Shrek 2(Voice)","Shrek the Third(Voice)","Shrek Forever After(Voice)"))
 ```
 
+```{r Shrek Movies, message=FALSE, warning=FALSE}
+#just shrek movies table 
+justshrek <- myers_movies %>% 
+ filter(Title %in% c("Shrek(Voice)", "Shrek 2(Voice)", "Shrek the Third(Voice)", "Shrek Forever After(Voice)"))
 
-Mike Myers is the industry veteran of Shrek and Cameron Diaz the rising star. Mike Myers was the exception this trio. He was already acclaimed for his hits like Wayne’s World and Austin Powers, whereas the other two had only garnered moderate attention. Myers was a big influencer in not only the depiction of Shrek, but in the process of crafting the plot. (Entertainment Weekly, 2001) 
+```
 
+```{r Myers Movies Graphic, message=FALSE, warning=FALSE}
 
-```{r Diaz, message=FALSE, warning=FALSE}
+myerz <-ggplot(data = myers_movies, aes(x = date, y = lifetime, text = paste(Title), text2 = Date,text3 = LifetimeGross)) + 
+  #Shrek data
+  geom_point(data = justshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime),color = "#0B5D1E", inherit.aes = FALSE) +
+  #Myers movie data (no shrek)
+  geom_point(data = noshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime), alpha = 0.8,color = "#686868", inherit.aes = FALSE) +
+  scale_y_continuous(limit = c(0,500000000), 
+                     breaks = c(0,100000000,200000000,300000000,400000000), 
+                     labels = c("$0","$100M", "$200M", "$300M", "$400M")) +
+  labs( x = "Release Date", y = "Total Gross") +
+  ggtitle("Mike Myer's Movies")+ 
+  theme_fivethirtyeight()+
+   theme(axis.title.y = element_text("Total Gross", size = (14), face = "bold"), 
+        axis.title.x = element_text("Release Date", size = (14), face = "bold"), 
+        axis.text = element_text( size = (10)))
+#tooltip animation
+myers <- ggplotly(tooltip = c("text", "text2", "text3"))
+myers
+
+```
+
+```{r Diaz Tables, message=FALSE, warning=FALSE}
+#input Diaz Movie Data
 url <- "http://www.boxofficemojo.com/people/chart/?id=camerondiaz.htm"
 html_bom <- read_html(url)
 tables <- html_bom %>%
@@ -257,29 +304,46 @@ diaz_movies <- tables[[3]] %>%
 require(lubridate)
 diaz_movies <- diaz_movies[,-7]
 
+#Main Diaz movie table
 diaz_movies <- diaz_movies %>%
   mutate(date = mdy(Date),
          opening = parse_number(`Opening / Theaters`),
-         lifetime = parse_number(`Lifetime Gross / Theaters`))
+         lifetime = parse_number(`Lifetime Gross / Theaters`))%>%
+ rename( Title = `Title (click to view)`)
+diaz_movies <- diaz_movies %>% 
+  rename(LifetimeGross = `Lifetime Gross / Theaters`)
 
-ggplot(data = diaz_movies, 
-       aes(x = date, y = opening)) + 
-  geom_point(aes(color = lifetime, size = lifetime)) +
-  scale_color_gradient(low = "#99FF99", high = "009505") +
-  guides(color = guide_legend("Lifetime Gross"),
-         size = guide_legend("Lifetime Gross")) +
-  scale_y_continuous("Opening Gross", labels = scales::dollar) +
-  scale_x_date("Release Date") +
-  annotate("segment", x = as.Date(ymd(20010522)), xend = as.Date(ymd(20010522)), y = 0, yend = 115000000, color = "darkgreen") +
-  annotate("text", x = as.Date(ymd(19970510)), y = 126000000, label = "First Shrek", size = 3, color = "darkgreen", fontface = "italic") +
-  annotate("text", x = as.Date(ymd(19970520)), y = 120000000, label = "Movie Released", size = 3, color = "darkgreen", fontface = "italic") +
-  ggtitle("Cameron Diaz's Movies Grosses \n Before and After Shrek")
+#Diaz movies that aren't shrek
+noshrek2 <- diaz_movies %>% 
+  filter(!Title %in% c("Shrek(Voice)","Shrek 2(Voice)","Shrek the Third(Voice)","Shrek Forever After(Voice)"))
 
 ```
 
-Cameron Diaz, however, benefitted in a different way from Shrek. Shrek was her blockbuster hit as an actor. She has had moderate commercial success in some of her other non-animated work, but her role as Princess Fiona made her critically acclaimed. After her heavily praised role in as princess Fiona, Diaz went on to book many more non-animated films, though she has never done another animated movie.
+```{r Diaz Movie Graphic, message=FALSE, warning=FALSE}
 
-```{r}
+diazz <-ggplot(data = diaz_movies, aes(x = date, y = lifetime, text = paste(Title), text2 = Date,text3 = LifetimeGross)) +
+  #Shrek data
+  geom_point(data = justshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime),color = "#0B5D1E", inherit.aes = FALSE) +
+  #Myers movie data (no shrek)
+  geom_point(data = noshrek2, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime), alpha = 0.8,color = "#686868", inherit.aes = FALSE) +
+  scale_y_continuous(limit = c(0,500000000), 
+                     breaks = c(0,100000000,200000000,300000000,400000000), 
+                     labels = c("$0","$100M", "$200M", "$300M", "$400M")) +
+  labs( x = "Release Date", y = "Total Gross") +
+  ggtitle("Cameron Diaz's Movies")+ 
+  theme_fivethirtyeight()+
+   theme(axis.title.y = element_text("Total Gross", size = (14)), 
+        axis.title.x = element_text("Release Date", size = (14)), 
+        axis.text = element_text( size = (10)))
+#tooltip animation
+diazz <- ggplotly(tooltip = c("text", "text2", "text3"))
+diazz
+
+```
+
+
+```{r Murphy Movie Table, message=FALSE, warning=FALSE}
+#input Murphy Data
 url <- "http://www.boxofficemojo.com/people/chart/?id=eddiemurphy.htm"
 
 html_bom <- read_html(url)
@@ -290,27 +354,44 @@ murphy_movies <- tables[[3]] %>%
 
 require(lubridate)
 murphy_movies <- murphy_movies[,-7]
-
+#Main murphy table
 murphy_movies <- murphy_movies %>%
   mutate(date = mdy(Date),
          opening = parse_number(`Opening / Theaters`),
-         lifetime = parse_number(`Lifetime Gross / Theaters`))
+         lifetime = parse_number(`Lifetime Gross / Theaters`))%>%
+ rename( Title = `Title (click to view)`)
+murphy_movies <- murphy_movies %>% 
+  rename(LifetimeGross = `Lifetime Gross / Theaters`)
 
-ggplot(data = murphy_movies, 
-       aes(x = date, y = opening)) + 
-  geom_point(aes(color = lifetime, size = lifetime)) +
-  scale_color_gradient(low = "#99FF99", high = "009505") +
-  guides(color = guide_legend("Lifetime Gross"),
-         size = guide_legend("Lifetime Gross")) +
-  scale_y_continuous("Opening Gross", labels = scales::dollar) +
-  scale_x_date("Release Date") +
-  annotate("segment", x = as.Date(ymd(20010522)), xend = as.Date(ymd(20010522)), y = 0, yend = 115000000, color = "darkgreen") +
-  annotate("text", x = as.Date(ymd(19970510)), y = 126000000, label = "First Shrek", size = 3, color = "darkgreen", fontface = "italic") +
-  annotate("text", x = as.Date(ymd(19970520)), y = 120000000, label = "Movie Released", size = 3, color = "darkgreen", fontface = "italic") +
-  ggtitle("Eddie Murphy's Movies Grosses \n Before and After Shrek")
+#Murphy movies w/o shrek
+noshrek3 <- murphy_movies %>% 
+  filter(!Title %in% c("Shrek(Voice)","Shrek 2(Voice)","Shrek the Third(Voice)","Shrek Forever After(Voice)"))
+
 ```
 
-For Eddie Murphy, Shrek gave him a niche market of animation and comedic material for children. He became idolized for his vocal performance as Donkey. Murphy started out as an comedian for adult audiences, but none of which has been as successful as the Shrek franchise. Eddie Murphy, however, was an acclaimed voice actor. He had played a supporting role as MuShu the dragon in Disney’s Mulan, but Shrek cemented his notoriety as a master of family movies. He booked more family movies like Dr. Dolittle and Daddy Day Care. The data shows that his family work was more popular than his work for adult audiences like I Spy and Metro.
+```{r Murphy Movie Graphic, message=FALSE, warning=FALSE}
+
+murphy <-ggplot(data = murphy_movies, aes(x = date, y = lifetime, text = paste(Title), text2 = Date,text3 = LifetimeGross)) + 
+  #Shrek data
+  geom_point(data = justshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime),color = "#0B5D1E", inherit.aes = FALSE) +
+  #Murphy movies (no shrek)
+  geom_point(data = noshrek3, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime), alpha = 0.8,color = "#686868", inherit.aes = FALSE) +
+  scale_y_continuous(limit = c(0,500000000), 
+                     breaks = c(0,100000000,200000000,300000000,400000000), 
+                     labels = c("$0","$100M", "$200M", "$300M", "$400M")) +
+  labs( x = "Release Date", y = "Total Gross") +
+  ggtitle("Eddie Murphy's Movies")+ 
+  theme_fivethirtyeight()+
+   theme(axis.title.y = element_text("Total Gross", size = (14)), 
+        axis.title.x = element_text("Release Date", size = (14)), 
+        axis.text = element_text( size = (10)))
+
+murphy <- ggplotly(tooltip = c("text", "text2", "text3"))
+murphy
+```
+
+
 
 **GitHub**
 https://github.com/kimbrlyzhang/miniproject4 
+
