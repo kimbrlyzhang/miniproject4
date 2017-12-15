@@ -1,0 +1,214 @@
+---
+output: 
+    html_document:
+        code_folding: hide 
+---
+# Life After Shrek # 
+By Maddie Haines, Emily Raphael, and Kimberly Zhang 
+
+Get the Data on Github[^8]
+
+![](https://d2e111jq13me73.cloudfront.net/sites/default/files/styles/review_gallery_carousel_slide_thumbnail/public/screenshots/csm-movie/shrek-still-1.jpg?itok=ao19_gY4)
+
+
+```{r Load Library, message=FALSE, warning=FALSE}
+library(mdsr)
+library(RMySQL)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+library(stringr)
+library(devtools)
+library(rvest)
+library(plotly)
+library(gapminder)
+library(ggthemes)
+db <- dbConnect_scidb(db = "imdb")
+
+#devtools::install_github("benmarwick/wordcountaddin", 
+                      #type = "source", dependencies = TRUE)
+#wordcountaddin:::text_stats("shrek.Rmd")
+```
+
+
+```{r Query Data, message=FALSE, warning=FALSE, echo = FALSE}
+tables <- html_bom %>%
+  html_nodes("table")
+
+shrekmovies <- tables[[6]] %>%
+  html_table(header = TRUE)
+
+#shrek movies already adjusted for inflation
+
+shrekmovies <- shrekmovies %>%
+  head(n = 5)
+#create base shrek table
+require(lubridate)
+grosshrek <- shrekmovies %>%
+  mutate(date = mdy(Release), 
+         gross = parse_number(`Adjusted Gross`)) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date)
+```
+
+```{r Despicable Me Table, message=FALSE, warning=FALSE}
+#input Despicable Me Data
+
+url <- "http://www.boxofficemojo.com/franchises/chart/?id=despicableme.htm"
+
+html_bom <- read_html(url)
+
+tables <- html_bom %>%
+  html_nodes("table")
+#Already Adjusted for Inflation
+
+DE <- tables[[6]] %>%
+  html_table(header = TRUE) %>%
+  head(4)
+#create Despicable me table
+require(lubridate)
+DE <- DE %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg) 
+
+```
+
+```{r Toy Story Table, message=FALSE, warning=FALSE}
+#input Toy Story Data
+urltoystory <- "http://www.boxofficemojo.com/franchises/chart/?view=main&id=toystory.htm&p=.htm"
+
+html_bom <- read_html(urltoystory)
+
+#Already Adjusted for Inflation
+tablest <- html_bom %>%
+  html_nodes("table")
+
+andy <- tablest[[6]] %>%
+  html_table(header = TRUE)
+#Create basic Toy Story Table
+ toystory <- andy %>%
+  head(3) %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg)
+```
+
+```{r Ice Age Table , message=FALSE, warning=FALSE}
+#input Ice Age Table
+url <- "http://www.boxofficemojo.com/franchises/chart/?id=iceage.htm"
+
+html_bom <- read_html(url)
+
+#Already Adjusted For Inflation
+tables <- html_bom %>%
+  html_nodes("table")
+
+mammoth <- tables[[6]] %>%
+  html_table(header = TRUE)
+#Create basic Ice Age Table
+iceage <- mammoth %>%
+  head(5) %>%
+  mutate(gross = parse_number(`Adjusted Gross`), date = mdy(Release), avg = sum(gross)/n()) %>%
+  rename(title = "Title (click to view)") %>%
+  select(title, gross, date, avg)
+
+```
+###Let’s be honest, how many of you know that Shrek is cameron Diaz's highest grossing movie? Animated films may churn out profit margins of 300 percent,[^1] but rarely do they define an actor's career.###
+
+Laugh at Shrek all you want, but the franchise is no joke. Grossing at $1.9 billion, Shrek is the fourteenth highest grossing film empire across all genres.[^2] One would think that this level of success could launch an actor’s career the way The Hunger Games introduced us to [Jennifer Lawrence](https://www.biography.com/people/jennifer-lawrence-20939797) in 2012, but animated movies don’t seem to influence an actor’s popularity. 
+
+###Shrek rules a kingdom not so far away.###
+ 
+The Shrek franchise, in many ways, is a perfect case study for voice-acting’s impact on an acting career. Not only is Shrek profitable, but the franchise’s critical acclaim landed it [Best Animated Feature in 2002](http://www.oscars.org/oscars/ceremonies/2002). Critic reviews from the likes of the Guardian proclaim “[One] would have to be a real ogre to not like it.”[^3] Shrek has an [All Star](https://open.spotify.com/track/3cfOd4CMv2snFaKAnMdnvK) cast with Hollywood veterans like Mike Myers from Austin Powers, Cameron Diaz from hits like Charlie’s Angels and Eddie Murphy from Doctor Dolittle. Holding second place on the podium of animated franchises, Shrek grosses well above average living amongst giants like [Despicable Me](http://www.imdb.com/list/ls000683731/), [Ice Age](http://www.imdb.com/list/ls062266037/), and [Toy Story](http://www.imdb.com/title/tt0114709/). 
+```{r Average Animation Table, message=FALSE, warning=FALSE, include=FALSE}
+###We’re peeling back the [onion layers](https://www.youtube.com/watch?v=7d6ZsRM36RU) on voice acting.### 
+
+After taking the lifetime gross of the Shrek movies and comparing it to other movies the three principle actors have starred in, it is pretty clear that Shrek was the major financial highlight of their careers. While Shrek, Princess Fiona, and Donkey are recognizable cinematic figures, that stardom doesn’t seem to extend to their voice counterparts, Mike Myers, Cameron Diaz, and Eddie Murphy respectively.
+
+![](http://www.globalgiants.com/archives/fotos26/ShrekMurphy-01.jpg) 
+```{r Myers Tables, message=FALSE, warning=FALSE}
+#input Myers Movie Data
+url <- "http://www.boxofficemojo.com/people/chart/?view=Actor&id=mikemyers.htm&sort=date&order=ASC&p=.htm"
+
+html_bom <- read_html(url)
+tables <- html_bom %>%
+  html_nodes("table")
+myers_movies <- tables[[3]] %>%
+  html_table(header = TRUE)
+
+require(lubridate)
+myers_movies <- myers_movies[,-7]
+#Main myers table
+myers_movies <- myers_movies %>%
+  mutate(date = mdy(Date),
+         opening = parse_number(`Opening / Theaters`),
+         lifetime = parse_number(`Lifetime Gross / Theaters`))%>%
+  rename( Title = `Title (click to view)`)
+myers_movies <- myers_movies %>% 
+  rename(LifetimeGross = `Lifetime Gross / Theaters`)
+
+#Myers movies that are not shrek
+noshrek <- myers_movies %>% 
+  filter(!Title %in% c("Shrek(Voice)","Shrek 2(Voice)","Shrek the Third(Voice)","Shrek Forever After(Voice)"))
+```
+
+```{r Shrek Movies, message=FALSE, warning=FALSE}
+#just shrek movies table 
+justshrek <- myers_movies %>% 
+ filter(Title %in% c("Shrek(Voice)", "Shrek 2(Voice)", "Shrek the Third(Voice)", "Shrek Forever After(Voice)"))
+
+```
+Mike Myers was already a veteran actor when he was cast as Shrek and he influenced not only the animated depiction of Shrek, but the plot of the movie as a whole [^4]. He was already acclaimed for his hits like Wayne’s World and Austin Powers, and therefore came into this project as an established actor. In the case of Myers, the evidence suggests that being the star voice of an major animated movie produced by a major studio are perhaps an honor, the pinnacle of a career. 
+
+
+```{r Myers Movies Graphic, message=FALSE, warning=FALSE}
+
+myerz <-ggplot(data = myers_movies, aes(x = date, y = lifetime, text = paste(Title), text2 = Date,text3 = LifetimeGross)) + 
+  #Shrek data
+  geom_point(data = justshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime),color = "#0B5D1E", inherit.aes = FALSE) +
+  #Myers movie data (no shrek)
+  geom_point(data = noshrek, aes(x = date, y = lifetime, text = Title, text2 = Date,text3 = LifetimeGross,size = lifetime), alpha = 0.8,color = "#686868", inherit.aes = FALSE) +
+  scale_y_continuous(limit = c(0,500000000), 
+                     breaks = c(0,100000000,200000000,300000000,400000000), 
+                     labels = c("$0","$100M", "$200M", "$300M", "$400M")) +
+  labs( x = "Release Date", y = "Total Gross") +
+  ggtitle("Mike Myer's Movies")+ 
+  theme_fivethirtyeight()+
+   theme(axis.title.y = element_text("Total Gross", size = (14), face = "bold"), 
+        axis.title.x = element_text("Release Date", size = (14), face = "bold"), 
+        axis.text = element_text( size = (10)))
+#tooltip animation
+myers <- ggplotly(tooltip = c("text", "text2", "text3"))
+myers
+```
+Myers is not the first celebrity to have input into his character. In fact, it’s a part of a trend to have animated characters tailored to their celebrity-status voice actor. One of Shrek’s spinoffs, [Puss in Boots](http://www.imdb.com/title/tt0448694/) does just that. [Antonio Banderas](http://www.imdb.com/name/nm0000104/?ref_=nv_sr_1) , plays Puss. “Banderas's voice is perfect for Puss, the character was tailored to it, after all—but in the end, Banderas has one voice, and when...voice actors have ‘a thousand voices,’ it's hard not to feel like they're being wasted.” [^5] This is a departure from the previous generation of voice-actors who provided voices for multiple characters in a film, diluting their influence on their animated representation.
+
+![](http://stmedia.stimg.co/2mov0516.jpg?w=525)
+For Cameron Diaz, on the other hand, Shrek was the blockbuster hit that could have launched her as an actor. She had appeared in several movies before Shrek, and she has had moderate commercial success in some of her other non-animated work since Shrek, but her role as Princess Fiona was what made her critically acclaimed. Looking at her movie roles post-Shrek there seems to be little difference in their success compared to her pre-Shrek days, implying the wildly popular franchise had little sway on her career. Diaz is primarily known for dramas and romantic comedies, and has never done another animated movie, despite her success in the area. 
+
+![](http://d2436y6oj07al2.cloudfront.net/assets/vbblog/2013/04/Eddie-Murphy-donkey-5987309-500-681.jpg)
+Eddie Murphy is the outlier in the Shrek sample, as he has done other animation films and is often recognized for his voice acting. He played the distinctive voice of MuShu the dragon in Disney’s Mulan, a moderately successful animated film, but [Beverly Hills Cop](http://www.imdb.com/title/tt0086960/?ref_=nv_sr_5) and [Doctor Dolittle](http://www.imdb.com/title/tt0118998/?ref_=nv_sr_2) resulted in higher profits. Shrek skyrockets Murphy into a voice acting star, though this popularity is not translated into future films. Murphy has not released a [film since 2012](http://www.imdb.com/title/tt0763831/) and in an interview with the Washington Post said that “the Shrek movies are over for me,”[^6] explaining his recent withdrawal from hollywood. 
+
+###It’s not always happily ever after.### 
+
+Examining the Shrek franchise in Myers, Diaz and Murphy’s film careers, highlights Shrek’s success. Shrek is the highest grossing movie for all of the main actors, however the role did not propel their careers forward in terms of the frequency of movies casted and amount post-Shrek movies grossed. The anonymity of a voice-acting may contribute to this phenomenon, but the stages of each actors’ career also play a large factor. Mike Myers had seen some success prior to Shrek and ultimately decided to produce movies and documentaries as his career progressed, Murphy has left Hollywood, and Diaz remains firmly planted in rom-com land. 
+
+We looked at a single franchise, and there are many variables in actors’ success. In order to prove a more definitive connection, we would have to look more voices in other successful animated movies. It could be that Cameron Diaz simply isn’t very good at booking roles, or that she made so much money from Shrek that she no longer cared about the financial success of her later work. Diaz herself has stated in interviews that “It’s been a bit of a safety net.” [^7]
+
+It is also unclear whether this conclusion could be applied to career voice actors who continued to work in animated movies after initial success, as Eddie Murphy was the only one to work on a non-Shrek animated movie. Both were critically acclaimed, and it could be argued that Murphy’s success in [Mulan](http://www.imdb.com/title/tt0120762/?ref_=nv_sr_2) lead to his role in Shrek, but this connection is uncertain. It would be interesting to investigate the careers of frequent voice actors and see if the effect of a popular franchise influ
+enced their future as actors. 
+
+While a voice acting gig may end up being incredibly lucrative and successful, it doesn’t translate very well into later success. These findings imply that the physical presence of the actor on screen is an important part of their performance and the providing only their voice can affect their ability to capitalize on the success of a movie franchise like Shrek. These actor may have gotten lost in [the Swamp](https://vignette.wikia.nocookie.net/shrek/images/5/58/Fc19d7db9cbcb7659aae3dce7bf6b3c1.jpg/revision/latest?cb=20170129025042). 
+
+
+[^1]:http://deadline.com/2012/04/animation-retains-title-as-the-decades-most-profitable-movie-genre-snl-kagan-254834/
+[^2]:http://www.boxofficemojo.com/genres/chart/?id=animation.htm 
+[^3]:https://www.theguardian.com/film/News_Story/Critic_Review/Guardian_Film_of_the_week/0,,1251483,00.html
+[^4]:http://ew.com/article/2001/05/25/shrek-how-dreamworks-teamed-mike-myers-and-created-modern-fairy-tale/ 
+[^5]:https://www.theatlantic.com/entertainment/archive/2011/10/how-celebrities-took-over-cartoon-voice-acting/247481/'
+[^6]:http://www.washingtonpost.com/sf/style/2015/10/13/eddie-murphy-hasnt-told-a-joke-onstage-in-28-years-hes-still-the-funniest-guy-around/?utm_term=.777919d7371a 
+[^7]: http://www.nytimes.com/2010/05/16/movies/16shrek.html] 
+[^8]: https://github.com/kimbrlyzhang/miniproject4
+ᐧ
